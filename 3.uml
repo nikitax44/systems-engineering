@@ -1,0 +1,13 @@
+@startuml
+class messages {
+    +destination : BYTEA {PK}
+    +payload : BYTEA
+    +expires : TIMESTAMP
+    {check octet_length(destination) = 32}
+}
+
+note right of messages
+  Index: idx_messages_dest (destination)
+  Index: idx_messages_expire (expires)
+end note
+@enduml
