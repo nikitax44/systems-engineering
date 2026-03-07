@@ -1,0 +1,51 @@
+@startuml
+actor Receiver
+participant Server
+actor Sender
+
+activate Server
+
+==Send==
+
+activate Sender
+
+Sender->Server:Handshake
+
+group POW
+  Server->Sender:Salt, n
+  abox over Sender:Compute proof of work
+  Server<-Sender:Proof of work
+
+  alt Valid proof of work
+    Server->Sender: Ok
+  else Invalid proof of work
+    Server-->>Sender:Disconnect
+  end
+end
+
+Server <-Sender: message
+deactivate Sender
+box right of Server:update DB
+
+==Receive==
+
+activate Receiver
+Receiver->Server:Handshake
+group POW
+  Receiver<-Server:Salt, n
+  abox over Receiver:Compute proof of work
+  Receiver->Server:Proof of work
+
+  alt Valid proof of work
+    Receiver<-Server: Ok
+  else Invalid proof of work
+    Receiver<<--Server:Disconnect
+  end
+end
+
+Receiver->Server:S-PK, C-PK, Salt signed with S-SK
+box left of Server:Verify identity proof, query and update DB
+Receiver<-Server:Messages
+
+deactivate Receiver
+@enduml
