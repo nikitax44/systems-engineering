@@ -13,6 +13,7 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
     depends_on:
       - prometheus
+      - loki
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -24,12 +25,21 @@ services:
       - prometheus-storage:/prometheus     # optional persistent storage
     depends_on:
       - demo
+  loki:
+    image: grafana/loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
   demo:
     build: .
     container_name: demo
     restart: unless-stopped
     ports:
       - '8080:8080'
+    depends_on:
+      - loki
 volumes:
   grafana-storage: {}
   prometheus-storage: {}

@@ -1,6 +1,20 @@
 # app.py
 from flask import Flask, jsonify, request, Response
 from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
+import logging
+import logging_loki
+
+logging_loki.emitter.LokiEmitter.level_tag = "level"
+
+handler = logging_loki.LokiHandler(
+    url="http://loki:3100/loki/api/v1/push",
+    version="1",
+)
+
+logger = logging.getLogger()
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+
 
 app = Flask(__name__)
 
@@ -58,6 +72,8 @@ def publish_post():
 
     posts.append(data)
     NEW_POSTS_COUNT.inc()
+    logging.info(f'New post: "{data["author"]} - {data["title"]}"')
+
     return jsonify(len(posts) - 1), 201
 
 
@@ -74,10 +90,16 @@ def update_post(post_id):
     ):
         return jsonify({"error": "Invalid payload"}), 400
 
-    if posts[post_id]["author"] != data["author"]:
+    old = posts[post_id]
+
+    if old["author"] != data["author"]:
+        logging.error(
+            f'Attempt to change authorship of the post "{old["author"]} - {old["title"]}"'
+        )
         return jsonify({"error": "Forbidden"}), 403
 
     posts[post_id] = data
+    logging.info(f'Post "{old["author"]} - {old["title"]}" was updated')
     return jsonify(None), 200
 
 
@@ -88,6 +110,9 @@ def revoke_post(post_id):
 
     old = posts[post_id]
     if "revoked" in old:
+        logging.warn(
+            f'Attempt to revoke already revoked post "{old["author"]} - {old["title"]}"'
+        )
         return jsonify({"error": "Post already was revoked"}), 410
     posts[post_id] = {
         "author": old["author"],
@@ -96,6 +121,7 @@ def revoke_post(post_id):
         "revoked": True,
     }
     DELETED_POSTS_COUNT.inc()
+    logging.info(f'Post "{old["author"]} - {old["title"]}" was revoked')
     return jsonify(None), 204
 
 
