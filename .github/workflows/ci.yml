@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      docker:
+        image: docker:20.10.24
+        options: --privileged
+        ports:
+          - 2375:2375
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+
+      - name: Start services with Docker Compose
+        run: |
+          docker-compose up -d demo
+
+      - name: Wait for services to become healthy
+        run: |
+          timeout 60 bash -c 'until curl -s http://localhost:8080/health; do sleep 2; done'
+
+      - name: Run integration curl requests
+        run: |
+          curl -sX GET http://localhost:8080/posts
+          curl -sX POST http://localhost:8080/posts \
+               -H "Content-Type: application/json" \
+               -d '{"author":"test","title":"testing article","body":"some body"}'
+          curl -sX GET http://localhost:8080/posts/0
+          curl -sX PUT http://localhost:8080/posts/0 \
+               -H "Content-Type: application/json" \
+               -d '{"author":"test","title":"testing article","body":"updated body"}'
+          curl -sX DELETE http://localhost:8080/posts/0
+          curl -sX GET http://localhost:8080/posts
+      - name: Stop Docker Compose services
+        if: always()
+        run: |
+          docker-compose down
