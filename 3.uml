@@ -1,13 +1,23 @@
 @startuml
-class messages {
-    +destination : BYTEA {PK}
-    +payload : BYTEA
+' Entity: users
+class users {
+    +id : BYTEA <<PK>>
+    +s_pk : BYTEA
+    +c_pk : BYTEA
     +expires : TIMESTAMP
-    {check octet_length(destination) = 32}
+    {constraint chk_id_length: octet_length(id) = 32}
 }
 
-note right of messages
-  Index: idx_messages_dest (destination)
-  Index: idx_messages_expire (expires)
-end note
+' Entity: messages
+class messages {
+    +destination : BYTEA
+    +payload : BYTEA
+}
+
+' Relationships
+users "1" <-- "0..*" messages : FK destination
+messages ..> users : destination
+
+' Index
+users ..> idx_users_expire : index on expires
 @enduml
